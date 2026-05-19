@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Race Day Timing System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f0f0;
+    --muted: #888;
+    --dim: #555;
+    --green: #00e87a;
+    --gold: #ffc42e;
+    --blue: #4da6ff;
+    --red: #ff4d4d;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container { max-width: 700px; margin: 0 auto; }
+
+  header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  header p {
+    font-size: 0.8rem;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .clock-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .clock-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1rem;
+    text-align: center;
+  }
+  .clock-box .label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .clock-box .value {
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 2.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+  .value.green { color: var(--green); }
+  .value.gold  { color: var(--gold); }
+
+  .gun-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    font-size: 0.82rem;
+  }
+  .gun-bar .label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; }
+  .gun-bar .val   { font-family: monospace; font-weight: 600; font-size: 0.95rem; color: var(--text); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); margin-left: auto; flex-shrink: 0; transition: background 0.3s; }
+  .dot.live { background: var(--green); animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 10px 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: opacity 0.15s, transform 0.1s, background 0.15s;
+    letter-spacing: 0.02em;
+  }
+  button:hover:not(:disabled) { background: var(--surface); }
+  button:active:not(:disabled) { transform: scale(0.96); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  button.green { color: var(--green); border-color: rgba(0,232,122,0.3); }
+  button.gold  { color: var(--gold);  border-color: rgba(255,196,46,0.3); }
+  button.red   { color: var(--red);   border-color: rgba(255,77,77,0.3); }
+  button.blue  { color: var(--blue);  border-color: rgba(77,166,255,0.3); }
+
+  .bib-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+  .bib-row input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 1.1rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .bib-row input:focus { border-color: rgba(255,255,255,0.35); }
+  .bib-row input::placeholder { color: var(--dim); font-family: inherit; font-size: 0.82rem; }
+  .bib-row button { flex: 0 0 auto; padding: 10px 16px; }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .log-clear {
+    font-size: 0.72rem;
+    color: var(--dim);
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 4px;
+  }
+  .log-clear:hover { color: var(--red); background: rgba(255,77,77,0.08); }
+
+  .log-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-y: auto;
+    max-height: 280px;
+  }
+  .log-entry {
+    display: grid;
+    grid-template-columns: 56px 64px 1fr 96px;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    animation: slideIn 0.18s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  .log-entry:last-child { border-bottom: none; }
+  .log-bib  { font-family: monospace; font-weight: 700; color: var(--text); font-size: 0.9rem; }
+  .badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 99px;
+    text-align: center;
+  }
+  .badge-finish { background: rgba(0,232,122,0.12); color: var(--green); }
+  .badge-lap    { background: rgba(77,166,255,0.12); color: var(--blue); }
+  .badge-gun    { background: rgba(255,196,46,0.12); color: var(--gold); }
+  .log-wall    { font-family: monospace; color: var(--text); font-size: 0.82rem; }
+  .log-elapsed { font-family: monospace; color: var(--muted); font-size: 0.82rem; text-align: right; }
+  .empty-log { padding: 2.5rem; text-align: center; color: var(--dim); font-size: 0.82rem; }
+
+  .export-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 10px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+  }
+  .export-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface); }
+
+  footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 480px) {
+    .clock-box .value { font-size: 1.9rem; }
+    .log-entry { grid-template-columns: 48px 56px 1fr 80px; gap: 6px; padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Race Day Timing</h1>
+    <p>Official clock &amp; lap recorder</p>
+  </header>
+
+  <div class="clock-grid">
+    <div class="clock-box">
+      <div class="label">Wall clock</div>
+      <div class="value green" id="wall-clock">00:00:00</div>
+    </div>
+    <div class="clock-box">
+      <div class="label">Race elapsed</div>
+      <div class="value gold" id="race-elapsed">&#8212;&#8212;:&#8212;&#8212;:&#8212;&#8212;</div>
+    </div>
+  </div>
+
+  <div class="gun-bar">
+    <span class="label">Gun time</span>
+    <span class="val" id="gun-time">Not started</span>
+    <div class="dot" id="live-dot"></div>
+  </div>
+
+  <p class="section-label">Race controls</p>
+  <div class="btn-row">
+    <button class="green" id="btn-start" onclick="startRace()">&#9873; Start race</button>
+    <button class="gold"  id="btn-pause" onclick="togglePause()" disabled>&#9646;&#9646; Pause</button>
+    <button class="red"   id="btn-reset" onclick="resetAll()">&#8635; Reset</button>
+  </div>
+
+  <p class="section-label">Record bib crossing</p>
+  <div class="bib-row">
+    <input type="number" id="bib-input" placeholder="Bib number" min="1" max="9999"
+      onkeydown="if(event.key==='Enter')recordFinish()">
+    <button class="blue" onclick="recordLap()">+ Lap</button>
+    <button class="green" onclick="recordFinish()">&#9873; Finish</button>
+  </div>
+
+  <div class="log-header">
+    <p class="section-label" style="margin:0">Timing log</p>
+    <button class="log-clear" onclick="clearLog()">Clear</button>
+  </div>
+  <div class="log-list" id="log-list">
+    <div class="empty-log">Start the race, then record bib crossings here</div>
+  </div>
+
+  <button class="export-btn" onclick="exportCSV()">&#8659; Export log as CSV</button>
+
+  <footer>Race Day Timing System &mdash; runs in any browser, no install needed</footer>
+
+</div>
+<script>
+  let raceStart = null, paused = false, pauseStart = null, totalPaused = 0;
+  let entries = [], ticker = null;
+
+  function pad(n){ return String(Math.floor(Math.abs(n))).padStart(2,'0'); }
+
+  function fmtWall(d){
+    return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  }
+
+  function fmtElapsed(ms){
+    if(ms < 0) ms = 0;
+    let s = Math.floor(ms/1000);
+    let h = Math.floor(s/3600); s -= h*3600;
+    let m = Math.floor(s/60);   s -= m*60;
+    return pad(h)+':'+pad(m)+':'+pad(s);
+  }
+
+  function tick(){
+    const now = new Date();
+    document.getElementById('wall-clock').textContent = fmtWall(now);
+    if(raceStart && !paused){
+      document.getElementById('race-elapsed').textContent =
+        fmtElapsed(now - raceStart - totalPaused);
+    }
+  }
+
+  function startRace(){
+    if(raceStart && !confirm('Race already started. Restart?')) return;
+    raceStart = new Date();
+    totalPaused = 0; paused = false;
+    const gt = fmtWall(raceStart);
+    document.getElementById('gun-time').textContent = gt;
+    document.getElementById('live-dot').classList.add('live');
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-start').textContent = '✓ Running';
+    document.getElementById('btn-pause').disabled = false;
+    addEntry('—','gun', gt, '00:00:00');
+  }
+
+  function togglePause(){
+    const btn = document.getElementById('btn-pause');
+    const dot = document.getElementById('live-dot');
+    if(!paused){
+      paused = true; pauseStart = new Date();
+      btn.textContent = '▶ Resume';
+      dot.classList.remove('live');
+    } else {
+      totalPaused += new Date() - pauseStart;
+      paused = false; pauseStart = null;
+      btn.textContent = '❚❚ Pause';
+      dot.classList.add('live');
+    }
+  }
+
+  function elapsedNow(){
+    if(!raceStart) return '—';
+    return fmtElapsed(new Date() - raceStart - totalPaused);
+  }
+
+  function recordLap(){
+    const bib = document.getElementById('bib-input').value.trim();
+    if(!bib){ document.getElementById('bib-input').focus(); return; }
+    const now = new Date();
+    addEntry(bib, 'lap', fmtWall(now), elapsedNow());
+    document.getElementById('bib-input').value = '';
+    document.getElementById('bib-input').focus();
+  }
+
+  function recordFinish(){
+    const bib = document.getElementById('bib-input').value.trim();
+    if(!bib){ document.getElementById('bib-input').focus(); return; }
+    const now = new Date();
+    addEntry(bib, 'finish', fmtWall(now), elapsedNow());
+    document.getElementById('bib-input').value = '';
+    document.getElementById('bib-input').focus();
+  }
+
+  function addEntry(bib, type, wall, elapsed){
+    entries.unshift({bib, type, wall, elapsed});
+    render();
+  }
+
+  function render(){
+    const list = document.getElementById('log-list');
+    if(!entries.length){
+      list.innerHTML = '<div class="empty-log">Start the race, then record bib crossings here</div>';
+      return;
+    }
+    list.innerHTML = entries.map(e => {
+      const bc = e.type==='finish'?'badge-finish':e.type==='gun'?'badge-gun':'badge-lap';
+      const bl = e.type==='finish'?'Finish':e.type==='gun'?'Gun':'Lap';
+      const bib = e.type==='gun'?'START':'#'+e.bib;
+      return `<div class="log-entry">
+        <span class="log-bib">${bib}</span>
+        <span class="badge ${bc}">${bl}</span>
+        <span class="log-wall">${e.wall}</span>
+        <span class="log-elapsed">${e.elapsed}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function clearLog(){
+    if(entries.length && !confirm('Clear all log entries?')) return;
+    entries = []; render();
+  }
+
+  function resetAll(){
+    if(!confirm('Reset everything? This will clear the race clock and all entries.')) return;
+    raceStart = null; paused = false; pauseStart = null; totalPaused = 0; entries = [];
+    document.getElementById('gun-time').textContent = 'Not started';
+    document.getElementById('race-elapsed').textContent = '——:——:——';
+    document.getElementById('live-dot').classList.remove('live');
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-start').textContent = '⚑ Start race';
+    document.getElementById('btn-pause').disabled = true;
+    document.getElementById('btn-pause').textContent = '❚❚ Pause';
+    render();
+  }
+
+  function exportCSV(){
+    if(!entries.length){ alert('No entries to export yet.'); return; }
+    const rows = [['Bib','Type','Wall Clock','Race Elapsed']];
+    [...entries].reverse().forEach(e => rows.push([
+      e.type==='gun'?'START':e.bib, e.type, e.wall, e.elapsed
+    ]));
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download = 'race_timing_log.csv';
+    a.click();
+  }
+
+  ticker = setInterval(tick, 250);
+  tick();
+</script>
+</body>
+</html>
